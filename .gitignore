@@ -2,7 +2,7 @@
 node_modules
 packages/*/build
 !packages/niivue-desktop/build
-packages/*/dist
+# packages/*/dist
 packages/*/distForTests
 tests-out
 dist_intermediate
@@ -10,7 +10,7 @@ devdocs
 packages/*/_md_docs
 packages/*/docs/niivue*.js
 packages/*/demos/niivue*.js
-packages/*/demos/dist
+# packages/*/demos/dist
 packages/*/tests/niivue*.js
 niivue.es.js
 niivue.umd.js

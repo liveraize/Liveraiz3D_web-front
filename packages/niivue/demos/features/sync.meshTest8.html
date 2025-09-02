@@ -22,10 +22,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   box-sizing: border-box;
 ">
-
     <!-- 좌측 -->
-
-
     <!-- 가운데 (로고 + 텍스트) -->
     <!-- ✅ 로고 영역 -->
     <div style="display: flex; align-items: center;">
@@ -35,8 +32,6 @@
       display: block;
     ">
     </div>
-
-
 
     <!-- 우측 (버튼) -->
     <div style="display: flex; align-items: center;">
@@ -93,32 +88,69 @@
     <div id="meshSidebar">
       <div id="meshList"></div>
     </div>
+
     <div id="viewerArea">
       <div id="viewerContentArea" style="flex:1; display:flex; flex-direction:column;">
-        <div id="bottomHalf" style="position: relative;">
-          <div id="labelContainer" style="position:absolute; top:0; left:0; pointer-events:none; z-index:20;"></div>
-          <canvas id="threeCanvas"></canvas>
-          <canvas id="lassoCanvas" style="position:absolute; top:0; left:0; pointer-events:none;"></canvas>
-          <div id="scissorIcon" style="
-            position: absolute;
-            z-index: 100;
-            pointer-events: none;
-            display: none;
-            font-size: 20px;
-          ">✂️</div>
+        <!-- Top Mesh Area-->
+        
+        <div class="viewport-top">
+          <div id="leftTopContainer">
+            <canvas id="leftTop"></canvas>
+          </div>
+          
+          <div id="bottomHalf" style="position: relative;">
+            <div id="labelContainer" style="position:absolute; top:0; left:0; pointer-events:none; z-index:20;"></div>
+            <canvas id="threeCanvas"></canvas>
+            <canvas id="lassoCanvas" style="position:absolute; top:0; left:0; pointer-events:none;"></canvas>
+            <div id="scissorIcon" style="
+              position: absolute;
+              z-index: 100;
+              pointer-events: none;
+              display: none;
+              font-size: 20px;
+            ">✂️</div>
+          </div>
         </div>
-        <div id="topHalf">
-          <canvas id="canvasMulti"></canvas>
-        </div>
+
+        <!-- Third 2D Image Area-->
         <div id="topViewer" style="height: 300px;">
           <canvas id="canvasTop" style="width:100%; height:100%;"></canvas>
         </div>
       </div>
     </div>
+
     <div id="volumeTableArea">
       <div id="volumeTableContent"></div>
     </div>
   </div>
+  <style>
+    .viewport-top {
+      height: 50%;
+      width: 100%;
+
+      display: flex;
+      flex-direction: row;
+    }
+
+    #leftTopContainer {
+      width: 50%;
+      height: 100%;
+    }
+
+    #leftTop {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background-color: gray;
+      border-color: red;
+      border-style: solid;
+    }
+
+    #topViewer {
+      height: 50%;
+    }
+
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -129,25 +161,35 @@
 </script>
   <script type="module">
     import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
+
     import * as THREE from "three";
     import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
     import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
     import { NRRDLoader } from 'three/examples/jsm/loaders/NRRDLoader.js';
+
+    import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
+
     import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-    import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
     import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
+
+    import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
     import { renderNrrdMesh,  } from './viewer/renderNrrdMesh.js';
     import {
       labelColorMap, labelNameMap,
       applyColorTheme, createNiivueLUT, applyMeshColors
     } from './viewer/colorMaps.js';
+
     import { marchingCubes } from './utils/marchingCubes.js';
     import { uploadAndInferDicomBundle } from './upload/uploadAndInferDicomBundle.js';
+
     import * as niivue from '../dist/index.js'; // 또는 CDN 사용
+
     import { LassoEditor } from './editor/lassoEditor.js';
     import { meshToVoxel } from './utils/meshToVolume.js';
     import { voxelToNRRD } from './utils/nrrdEncoder.js';
-    import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
+
+    
     const originalWarn = console.warn;
 
     console.warn = (...args) => {
@@ -328,7 +370,8 @@
         
 
         // ✅ Niivue 초기화 (이후 카메라 동기화 진행)
-        await showTopVolumeOnly(nrrdUrl);
+        // await showTopVolumeOnly(nrrdUrl);
+        await initTopLeftView(niiUrl, nrrdUrl);
         await showMultiVolumeView(niiUrl, nrrdUrl);
 
         // ✅ 카메라 및 통계 출력
@@ -380,16 +423,12 @@
       threeMeshes = meshes;
 
       // ✅ Niivue 초기화 (이후 카메라 동기화 진행)
-      await showTopVolumeOnly(nrrdUrl, labelColorMap1);
+      // await showTopVolumeOnly(nrrdUrl, labelColorMap1);
+      await initTopLeftView(niiUrl, nrrdUrl);
       await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
 
-      lassoEditor.setRenderInstance(nvRender);
-      lassoEditor.setMultiInstance(nvMulti);
-
-      console.log("📦 라쏘 에디터 연결 상태:", {
-        nvRender: !!lassoEditor.nvRender,
-        nvMulti: !!lassoEditor.nvMulti
-      });
+      // lassoEditor.setRenderInstance(nvRender);
+      // lassoEditor.setMultiInstance(nvMulti);
 
       console.log("📦 Loaded volumes in nvMulti:", nvMulti?.volumes);
       
@@ -700,6 +739,62 @@
       console.log("✅ Niivue LUT 적용 완료");
     }
 
+    async function initTopLeftView(niiUrl, nrrdUrl) {
+      const leftTopPlane = new niivue.Niivue({
+        sliceType: niivue.SLICE_TYPE.AXIAL,
+        backColor: [0, 0, 0, 1],
+        dragAndDropEnabled: false,
+        isOrientCube: true,
+      });
+
+      await leftTopPlane.attachTo("leftTop");
+
+      // ✅ 서버 색상 기반 Niivue colormap 생성
+      const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
+      niivue.cmapper.addColormap("seg", segCmap);
+
+      // ✅ 최대 라벨 값 계산
+      const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
+      const labelLUT = niivue.cmapper.makeLabelLut(segCmap, maxLabelValue);
+
+      console.log("🚀 labelLUT:", labelLUT);
+
+      const volumeList = [
+        {
+          url: niiUrl,
+          name: "CT.nii.gz",
+          colormap: "gray",
+          opacity: 1,
+          visible: true,
+        },
+        {
+          url: nrrdUrl,
+          name: "Seg.nrrd",
+          colormap: "seg",       // ✅ 커스텀 컬러맵
+          indexedColors: true,
+          cal_min: labelLUT.min,
+          cal_max: labelLUT.max,
+          opacity: 0.8,
+          alphaThreshold: 0.0,
+          visible: true,
+        },
+      ];
+
+      await leftTopPlane.loadVolumes(volumeList);
+
+      // ✅ LUT 적용
+      const segVolume = leftTopPlane.volumes[1];
+      segVolume.lut = labelLUT.lut;
+      segVolume.cal_min = labelLUT.min;
+      segVolume.cal_max = labelLUT.max;
+
+      leftTopPlane.updateGLVolume();
+      leftTopPlane.drawScene();
+
+      console.log("✅ 멀티플레인 뷰어 로딩 완료");
+      return leftTopPlane;
+    }
+
     async function showMultiVolumeView(niiUrl, nrrdUrl) {
       nvMulti = new niivue.Niivue({
         sliceType: niivue.SLICE_TYPE.MULTIPLANE,
@@ -707,6 +802,17 @@
         dragAndDropEnabled: false,
         isOrientCube: true,
       });
+
+      const customLayout = [
+        // Left half - Sagittal view
+        { sliceType: niivue.SLICE_TYPE.SAGITTAL, position: [0, 0, 0.5, 1.0] },
+        // Top right quarter - Coronal view  
+        { sliceType: niivue.SLICE_TYPE.CORONAL, position: [0.5, 0, 0.5, 1.0] },
+        // Bottom right quarter - Axial view
+        // { sliceType: SLICE_TYPE.AXIAL, position: [0.5, 0.5, 0.5, 0.5] }
+      ];
+
+      nvMulti.setCustomLayout(customLayout);
 
       await nvMulti.attachTo("canvasTop");
 
@@ -1255,10 +1361,21 @@
       min-width: 270px;
     }
 
-    #topHalf,
+    #topHalf {
+      display: flex;
+      flex-direction: column;
+      
+      border-color: red;
+      border-style: solid;
+    }
+
     #bottomHalf {
-      width: 100%;
-      height: 50%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+
+      border-color: red;
+      border-style: solid;
     }
 
     #threeCanvas {
@@ -1268,7 +1385,7 @@
       /* sidebar보다 낮아야 클릭 통과 */
       width: 100%;
       height: 100%;
-      display: block;
+      display: flex;
     }
 
     #threeCanvas.crosshair {
