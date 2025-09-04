@@ -82,8 +82,6 @@
     <input type="file" id="dicomInput" webkitdirectory multiple />
     <!-- <p id="status">상태 메시지</p> -->
   </header>
-  <!-- <canvas id="canvasMulti" style="width:100%; height:100%"></canvas> -->
-
   <div id="mainLayout">
     <div id="meshSidebar">
       <div id="meshList"></div>
@@ -111,10 +109,10 @@
             ">✂️</div>
           </div>
         </div>
-
         <!-- Third 2D Image Area-->
         <div id="topViewer" style="height: 300px;">
           <canvas id="canvasTop" style="width:100%; height:100%;"></canvas>
+          <canvas id="canvasMulti" style="width:100%; height:100%"></canvas>
         </div>
       </div>
     </div>
@@ -148,6 +146,12 @@
 
     #topViewer {
       height: 50%;
+    }
+
+    #lassoCanvas {
+      width: 100%;
+      height: 100%;
+      z-index: 10;
     }
 
   </style>
@@ -256,7 +260,18 @@
 
     function initThreeJS() {
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+
+      const ro = new ResizeObserver(() => {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(w, h, false);
+
+        camera.aspect = w / h;        // Perspective
+        camera.updateProjectionMatrix();
+      });
+      ro.observe(canvas);
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x8a8a8a);
@@ -334,7 +349,6 @@
       scene.add(makeLabel('P', 'blue', new THREE.Vector3(0, 250, 0))); // +y (Anterior)
       scene.add(makeLabel('S', 'green', new THREE.Vector3(0, 0, 250))); // +Z (Superior)
 
-      // axisGroup.rotation.x = -Math.PI / 2;
       scene.add(axisGroup);
     }
 
@@ -370,7 +384,7 @@
         
 
         // ✅ Niivue 초기화 (이후 카메라 동기화 진행)
-        // await showTopVolumeOnly(nrrdUrl);
+        await showTopVolumeOnly(nrrdUrl);
         await initTopLeftView(niiUrl, nrrdUrl);
         await showMultiVolumeView(niiUrl, nrrdUrl);
 
@@ -410,10 +424,8 @@
 
       threeMeshes = meshes;
       initMeshMap(meshes);
-
       buildMeshControllers(meshes);
       addMeshsToScene(meshes);
-
 
       // 카메라 맞춤
       if (meshes.length > 0) {
@@ -423,12 +435,12 @@
       threeMeshes = meshes;
 
       // ✅ Niivue 초기화 (이후 카메라 동기화 진행)
-      // await showTopVolumeOnly(nrrdUrl, labelColorMap1);
+      await showTopVolumeOnly(nrrdUrl, labelColorMap1);
       await initTopLeftView(niiUrl, nrrdUrl);
       await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
 
-      // lassoEditor.setRenderInstance(nvRender);
-      // lassoEditor.setMultiInstance(nvMulti);
+      lassoEditor.setRenderInstance(nvRender);
+      lassoEditor.setMultiInstance(nvMulti);
 
       console.log("📦 Loaded volumes in nvMulti:", nvMulti?.volumes);
       
@@ -566,9 +578,11 @@
       nvRender.updateGLVolume();
       nvRender.drawScene();
 
-      console.log("✅ Top Volume 렌더 뷰어 로딩 완료");
+      animate();
+      // setCameraSyncronizer(nvRender);
+    }
 
-      // ✅ 카메라 초기화 및 Three.js와 동기화
+    function setCameraSyncronizer(nvRender) {
       let drawCount = 0;
       const drawInterval = setInterval(() => {
         nvRender.drawScene();
@@ -588,7 +602,6 @@
             syncCameraZoomFromThreeToNiivue(nvRender, camera, controls);
           });
 
-          animate();
         }
       }, 200);
     }
@@ -862,7 +875,7 @@
       return nvMulti;
     }
 
-    async function waitForNiivueReady(nvInstance, timeout = 5000) {
+    async function waitForNiivueReady(nvInstance, timeout = 500) {
       return new Promise((resolve, reject) => {
         const start = Date.now();
         const check = () => {

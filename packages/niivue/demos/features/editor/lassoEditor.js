@@ -70,8 +70,6 @@ export class LassoEditor {
 
     // ✅ 메시와 볼륨의 좌표 시스템 상세 분석
     logCoordinateSystemDetails(mesh) {
-        console.log("📷 Niivue Render cameraDistance:", this.nvRender.scene.cameraDistance);
-        console.log("📷 Niivue Render volScaleMultiplier:", this.nvRender.volScaleMultiplier);
         if (this.nvRender.volumes && this.nvRender.volumes[0]) {
             const vol = this.nvRender.volumes[0];
             console.log("📦 Render 볼륨 dims:", vol.hdr.dims.slice(1, 4));
@@ -338,7 +336,7 @@ export class LassoEditor {
         this.logAxisDirection();   // ← 여기에!
 
         // ✅ 메시와 볼륨의 좌표 시스템 상세 로깅
-        this.logCoordinateSystemDetails(mesh);
+        // this.logCoordinateSystemDetails(mesh);
 
         // ✅ UI 하이라이트 적용
         document.querySelectorAll('.mesh-row').forEach(el => el.classList.remove('selected-row'));
@@ -351,31 +349,31 @@ export class LassoEditor {
         });
 
         // setSelectedMesh 안이나 logCoordinateSystemDetails 직후에 추가
-const center = new THREE.Vector3();
-mesh.geometry.boundingBox.getCenter(center);
-mesh.localToWorld(center);
+        const center = new THREE.Vector3();
+        mesh.geometry.boundingBox.getCenter(center);
+        mesh.localToWorld(center);
 
-// 로컬 축 단위벡터
-const axes = {
-  "+X": new THREE.Vector3(1,0,0),
-  "-X": new THREE.Vector3(-1,0,0),
-  "+Y": new THREE.Vector3(0,1,0),
-  "-Y": new THREE.Vector3(0,-1,0),
-  "+Z": new THREE.Vector3(0,0,1),
-  "-Z": new THREE.Vector3(0,0,-1),
-};
+        // 로컬 축 단위벡터
+        const axes = {
+        "+X": new THREE.Vector3(1,0,0),
+        "-X": new THREE.Vector3(-1,0,0),
+        "+Y": new THREE.Vector3(0,1,0),
+        "-Y": new THREE.Vector3(0,-1,0),
+        "+Z": new THREE.Vector3(0,0,1),
+        "-Z": new THREE.Vector3(0,0,-1),
+        };
 
-for (const [name, dir] of Object.entries(axes)) {
-  // 메시의 회전(quaternion)을 반영한 방향
-  const worldDir = dir.clone().applyQuaternion(mesh.quaternion);
-  const testPos = center.clone().add(worldDir.multiplyScalar(10)); // 10mm 이동
+        for (const [name, dir] of Object.entries(axes)) {
+        // 메시의 회전(quaternion)을 반영한 방향
+        const worldDir = dir.clone().applyQuaternion(mesh.quaternion);
+        const testPos = center.clone().add(worldDir.multiplyScalar(10)); // 10mm 이동
 
-  console.log(`▶ Direction ${name} worldPos:`, testPos.toArray().map(v=>v.toFixed(2)));
+        console.log(`▶ Direction ${name} worldPos:`, testPos.toArray().map(v=>v.toFixed(2)));
 
-  // world→voxel
-  const vox = this.worldToVoxelWithRAS(testPos, this.nvMulti.volumes[1]);
-  console.log(`   → voxel indices: (${vox.x}, ${vox.y}, ${vox.z})`);
-}
+        // world→voxel
+        const vox = this.worldToVoxelWithRAS(testPos, this.nvMulti.volumes[1]);
+        console.log(`   → voxel indices: (${vox.x}, ${vox.y}, ${vox.z})`);
+        }
     }
 
 
@@ -532,8 +530,7 @@ for (const [name, dir] of Object.entries(axes)) {
     // ✅ 메시-볼륨 좌표 정렬 검증 (새로 추가)
     validateMeshVolumeAlignment(mesh) {
         console.log("💡 적용된 coordinateOffset:", this.coordinateOffset,
-            "useLPSToRASConversion:", this.useLPSToRASConversion,
-            "volScaleMultiplier:", this.nvRender.volScaleMultiplier);
+            "useLPSToRASConversion:", this.useLPSToRASConversion);
         if (!mesh || !this.nvMulti || !this.nvMulti.volumes || !this.nvMulti.volumes[1]) {
             console.warn("⚠️ 메시 또는 볼륨이 없어 정렬 검증을 건너뜁니다.");
             return;
