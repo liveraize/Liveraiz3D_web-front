@@ -2416,6 +2416,8 @@ export class LassoEditor {
         console.log("멀티플레인 볼륨 편집 시작...");
         console.log("선택된 매시:", this.selectedMesh);
         this.editSingleVolumeData(segVolume, "멀티플레인");
+        const resultVolumes = window.computeLabelVolumesDict(segVolume);
+        console.log("Edited volumes: ", resultVolumes);
         
         const editedNrrdBlob = this.createNrrdBlobFrom(segVolume);
         generateMeshFromNrrdBlob(editedNrrdBlob)
