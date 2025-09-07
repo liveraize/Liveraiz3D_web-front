@@ -260,19 +260,19 @@
     initThreeJS()
     loadTestVolumes();
 
+    function adjustMeshCanvasSize() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;        // Perspective
+      camera.updateProjectionMatrix();
+
+    }
+
     function initThreeJS() {
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-      renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
-
-      const ro = new ResizeObserver(() => {
-        const w = canvas.clientWidth;
-        const h = canvas.clientHeight;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setSize(w, h, false);
-
-        camera.aspect = w / h;        // Perspective
-        camera.updateProjectionMatrix();
-      });
+      const ro = new ResizeObserver(() => adjustMeshCanvasSize());
       ro.observe(canvas);
 
       scene = new THREE.Scene();
@@ -281,6 +281,8 @@
       camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 5000);
       camera.position.set(500, 500, 500);
       camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+      adjustMeshCanvasSize();
 
       // ✅ AmbientLight: 전체적인 기본 밝기
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
@@ -431,14 +433,13 @@
       if (meshes.length > 0) {
         fitCameraToMeshes(meshes, camera, controls);
       }
-
       threeMeshes = meshes;
-
-      // ✅ Niivue 초기화 (이후 카메라 동기화 진행)
-      await showTopVolumeOnly(nrrdUrl, labelColorMap1);
+      
       const bottomView = await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
-      // await initTopLeftView(niiUrl, nrrdUrl);
+      await showTopVolumeOnly(bottomView);
       const topLeftView = await createTopLeftFromAnotherView(bottomView);
+
+      animate();
 
       bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
       topLeftView.broadcastTo([bottomView], { "2d": true, "3d": true });
@@ -446,8 +447,6 @@
       lassoEditor.setRenderInstance(nvRender);
       lassoEditor.setMultiInstance(nvMulti);
       lassoEditor.setTopLeftView(topLeftView);
-
-      console.log("📦 Loaded volumes in nvMulti:", nvMulti?.volumes);
       
       if (!nvMulti || nvMulti.volumes.length < 2) {
         console.warn("⚠️ Niivue에 볼륨이 로드되지 않았습니다.");
@@ -506,9 +505,7 @@
       return { I, R, G, B, A };
     }
 
-    async function showTopVolumeOnly(nrrdUrl, labelColorMap1) {
-      console.log("🚀 ~ showTopVolumeOnly ~ labelColorMap:", labelColorMap1);
-
+    async function showTopVolumeOnly(volumeView) {
       nvRender = new niivue.Niivue({
         sliceType: niivue.SLICE_TYPE.RENDER,
         backColor: [0, 0, 0, 1],
@@ -518,49 +515,13 @@
 
       await nvRender.attachTo("canvasMulti");
 
-      // ✅ Niivue 기본 방향 설정
+      // Niivue 기본 방향 설정
       nvRender.scene.renderAzimuth = 180;
 
-      // ✅ 1. labelColorMap → Niivue Colormap 생성
-      const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
-      niivue.cmapper.addColormap("seg", segCmap);
-
-      // ✅ 2. 최대 라벨 값 기반 Niivue LUT 생성
-      const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
-      const labelLUT = niivue.cmapper.makeLabelLut(segCmap, maxLabelValue);
-
-      // ✅ 3. 볼륨 리스트 정의
-      const volumeList = [
-        {
-          url: nrrdUrl,
-          name: "Seg.nrrd",
-          colormap: "seg",      // ✅ 우리가 만든 colormap 사용
-          indexedColors: true,
-          cal_min: labelLUT.min,
-          cal_max: labelLUT.max,
-          opacity: 1.0,
-          alphaThreshold: 0.0,
-          visible: true,
-        }
-      ];
-
-      // ✅ 4. 볼륨 로드
-      await nvRender.loadVolumes(volumeList);
-
-      // ✅ 5. LUT 적용 → 반드시 labelLUT 사용
-      const segVolume = nvRender.volumes[0];
-      segVolume.lut = labelLUT.lut;
-      segVolume.cal_min = labelLUT.min;
-      segVolume.cal_max = labelLUT.max;
-
-      nvRender.opts.saturation = 1.4;   // 색감 선명
-      nvRender.opts.brightness = 0.3;   // 전체 밝기 증가
+      nvRender.addVolume(volumeView.volumes[1])
 
       nvRender.updateGLVolume();
       nvRender.drawScene();
-
-      animate();
-      // setCameraSyncronizer(nvRender);
     }
 
     function setCameraSyncronizer(nvRender) {
@@ -733,62 +694,6 @@
       console.log("✅ Niivue LUT 적용 완료");
     }
 
-    async function initTopLeftView(niiUrl, nrrdUrl) {
-      const leftTopPlane = new niivue.Niivue({
-        sliceType: niivue.SLICE_TYPE.AXIAL,
-        backColor: [0, 0, 0, 1],
-        dragAndDropEnabled: false,
-        isOrientCube: true,
-      });
-
-      await leftTopPlane.attachTo("leftTop");
-
-      // ✅ 서버 색상 기반 Niivue colormap 생성
-      const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
-      niivue.cmapper.addColormap("seg", segCmap);
-
-      // ✅ 최대 라벨 값 계산
-      const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
-      const labelLUT = niivue.cmapper.makeLabelLut(segCmap, maxLabelValue);
-
-      console.log("🚀 labelLUT:", labelLUT);
-
-      const volumeList = [
-        {
-          url: niiUrl,
-          name: "CT.nii.gz",
-          colormap: "gray",
-          opacity: 1,
-          visible: true,
-        },
-        {
-          url: nrrdUrl,
-          name: "Seg.nrrd",
-          colormap: "seg",       // ✅ 커스텀 컬러맵
-          indexedColors: true,
-          cal_min: labelLUT.min,
-          cal_max: labelLUT.max,
-          opacity: 0.8,
-          alphaThreshold: 0.0,
-          visible: true,
-        },
-      ];
-
-      await leftTopPlane.loadVolumes(volumeList);
-
-      // ✅ LUT 적용
-      const segVolume = leftTopPlane.volumes[1];
-      segVolume.lut = labelLUT.lut;
-      segVolume.cal_min = labelLUT.min;
-      segVolume.cal_max = labelLUT.max;
-
-      leftTopPlane.updateGLVolume();
-      leftTopPlane.drawScene();
-
-      console.log("✅ 멀티플레인 뷰어 로딩 완료");
-      return leftTopPlane;
-    }
-
     // 다른 niivue 의 volume 들을 사용하여 새로운 Niivue 를 만든다.
     async function createTopLeftFromAnotherView(niiVue) {
       const leftTopPlane = new niivue.Niivue({
@@ -922,26 +827,31 @@
     function bindMeshControllers(meshes) {
       const meshListDiv = document.getElementById('meshList');
       Array.from(meshListDiv.children).forEach(row => {
-        const meshId = row.dataset.meshId;
-        const mesh = meshes.find(m => m.uuid === meshId);
-        if (!mesh) return;
+        const meshLabel = row.dataset.label;
+        const mesh = meshes.find(m => m.userData.label.toString() === meshLabel);
+        if (!mesh) {
+          console.error("매시가 없습니다.", meshLabel, row.dataset, meshes);
+          return;
+        }
 
         // 가시성 토글
-        const visibilityCheckbox = row.querySelector('input[type="checkbox"]');
-        visibilityCheckbox.checked = mesh.visible;
-        visibilityCheckbox.onchange = () => {
-          mesh.visible = visibilityCheckbox.checked;
-          renderer.render(scene, camera);
-        };
+        // const visibilityCheckbox = row.querySelector('input[type="checkbox"]');
+        // visibilityCheckbox.checked = mesh.visible;
+        // visibilityCheckbox.onchange = () => {
+        //   mesh.visible = visibilityCheckbox.checked;
+        //   renderer.render(scene, camera);
+        // };
 
         // 불투명도 슬라이더
         const opacitySlider = row.querySelector('input[type="range"]');
-        opacitySlider.value = mesh.material.opacity;
-        opacitySlider.oninput = () => {
-          mesh.material.opacity = parseFloat(opacitySlider.value);
-          mesh.material.transparent = mesh.material.opacity < 1.0;
-          renderer.render(scene, camera);
-        };
+        mesh.material.opacity = opacitySlider.value;
+        mesh.material.transparent = mesh.material.opacity < 1.0;
+        
+        // opacitySlider.oninput = () => {
+        //   mesh.material.opacity = parseFloat(opacitySlider.value);
+        //   mesh.material.transparent = mesh.material.opacity < 1.0;
+        //   renderer.render(scene, camera);
+        // };
       });
     }
 
@@ -1159,7 +1069,6 @@
         e.stopPropagation();
         targetMesh.visible = !targetMesh.visible;
         updateIcon();
-        light.position.copy(camera.position);
         renderer.render(scene, camera);
       };
 

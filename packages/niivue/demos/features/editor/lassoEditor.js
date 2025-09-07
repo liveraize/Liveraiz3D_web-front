@@ -2417,7 +2417,6 @@ export class LassoEditor {
         console.log("선택된 매시:", this.selectedMesh);
         this.editSingleVolumeData(segVolume, "멀티플레인");
         
-        
         const editedNrrdBlob = this.createNrrdBlobFrom(segVolume);
         generateMeshFromNrrdBlob(editedNrrdBlob)
             .then((newMeshes) => {
@@ -2436,19 +2435,19 @@ export class LassoEditor {
 
         console.log(segVolume);     
 
-        // 렌더 뷰어의 볼륨도 편집
-        if (this.nvRender && this.nvRender.volumes && this.nvRender.volumes[0]) {
-            const renderVolume = this.nvRender.volumes[0];
-            if (renderVolume.img && renderVolume.img.length > 0) {
-                console.log("🔄 렌더 뷰어 볼륨 편집 시작...");
-                this.editSingleVolumeData(renderVolume, "렌더");
-                console.log(renderVolume);
-            } else {
-                console.warn("⚠️ 렌더 볼륨 데이터가 없습니다.");
-            }
-        } else {
-            console.warn("⚠️ 렌더 뷰어가 준비되지 않았습니다.");
-        }
+        // // 렌더 뷰어의 볼륨도 편집
+        // if (this.nvRender && this.nvRender.volumes && this.nvRender.volumes[0]) {
+        //     const renderVolume = this.nvRender.volumes[0];
+        //     if (renderVolume.img && renderVolume.img.length > 0) {
+        //         console.log("🔄 렌더 뷰어 볼륨 편집 시작...");
+        //         this.editSingleVolumeData(renderVolume, "렌더");
+        //         console.log(renderVolume);
+        //     } else {
+        //         console.warn("⚠️ 렌더 볼륨 데이터가 없습니다.");
+        //     }
+        // } else {
+        //     console.warn("⚠️ 렌더 뷰어가 준비되지 않았습니다.");
+        // }
 
         // 볼륨 업데이트
         this.updateBothViewers();
