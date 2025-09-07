@@ -4,7 +4,6 @@
   + 여집합, 차집합, 교집합.
 + UI
 + 리포트
-+ View Port 2 x 2 정렬
 + 왼쪽 패널
   + Segmentation Mask
   + 영상 정보
@@ -17,3 +16,4 @@
 
 ### DONE
 + lasso 편집후 투명도 설정 사라진것 유지하기
++ View Port 2 x 2 정렬

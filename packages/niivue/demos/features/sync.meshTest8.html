@@ -439,6 +439,9 @@
       await showTopVolumeOnly(bottomView);
       const topLeftView = await createTopLeftFromAnotherView(bottomView);
 
+      topLeftView.setRadiologicalConvention(true);
+      bottomView.setRadiologicalConvention(true);
+
       animate();
 
       bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
@@ -476,9 +479,7 @@
       );
       const helper = new THREE.Box3Helper(box, 0x00ffcc);
       scene.add(helper);
-
     }
-
 
     let cameraAlreadySynced = false; // 최초 동기화 여부 전역 상태
 
