@@ -11,6 +11,7 @@ export class LassoEditor {
         this.scene = scene;
         this.controls = controls;
         this.nvMulti = nvMulti;
+        this.topLeftView = null;
 
         this.volumeEditMode = true;
         this.editRange = 2;
@@ -141,6 +142,10 @@ export class LassoEditor {
 
     setMultiInstance(nvMulti) {
         this.nvMulti = nvMulti;
+    }
+
+    setTopLeftView(topLeftView) {
+        this.topLeftView = topLeftView;
     }
 
     // ✅ Niivue 볼륨 뷰어 위에 오버레이 캔버스 생성
@@ -1772,6 +1777,11 @@ export class LassoEditor {
                 this.nvRender.drawScene(); // ✅ 항상 호출
             }
 
+            if (this.topLeftView) {
+                this.topLeftView.updateGLVolume();
+                this.topLeftView.drawScene();
+            }
+
             console.log("🔄 모든 뷰어 동기화 완료");
         } catch (error) {
             console.warn("⚠️ 뷰어 동기화 실패:", error);
@@ -2190,6 +2200,7 @@ export class LassoEditor {
             }
         }
 
+
         // 화면 다시 그리기
         this.nvMulti.drawScene();
         if (this.nvRender) {
@@ -2443,10 +2454,7 @@ export class LassoEditor {
         this.updateBothViewers();
     }
 
-    
-
     createNrrdBlobFrom(volume) {
-
         const TYPE_FROM_TA = {
             Uint8Array:  "uchar",
             Int8Array:   "char",
@@ -2461,11 +2469,10 @@ export class LassoEditor {
             // numpy/TypedArray 섞임 방지 → 일반 JS 배열 변환
             const toPlain = (v) =>
             ArrayBuffer.isView(v) ? Array.from(v)
-            : Array.isArray(v)   ? v.map(toPlain)
-            : v;
+                : Array.isArray(v)   ? v.map(toPlain)
+                : v;
 
         console.log("Volume", volume);
-        
 
         const type = TYPE_FROM_TA[volume.img?.constructor?.name] || "float";
 
@@ -2478,10 +2485,10 @@ export class LassoEditor {
         // origin은 srow_x/y/z가 있으면 거기서 추출, 없으면 0,0,0
         let spaceOrigin = [-209.6519928, -131.20599365, -191.88299561];
         if (volume.hdr.srow_x && volume.hdr.srow_y && volume.hdr.srow_z) {
-        const ox = parseFloat(volume.hdr.srow_x.split(" ")[3]);
-        const oy = parseFloat(volume.hdr.srow_y.split(" ")[3]);
-        const oz = parseFloat(volume.hdr.srow_z.split(" ")[3]);
-        spaceOrigin = [-209.6519928, -131.20599365, -191.88299561];
+            const ox = parseFloat(volume.hdr.srow_x.split(" ")[3]);
+            const oy = parseFloat(volume.hdr.srow_y.split(" ")[3]);
+            const oz = parseFloat(volume.hdr.srow_z.split(" ")[3]);
+            spaceOrigin = [-209.6519928, -131.20599365, -191.88299561];
         }
 
         const endian          = "little";

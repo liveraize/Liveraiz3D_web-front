@@ -126,6 +126,8 @@
       height: 50%;
       width: 100%;
 
+      background-color: #fff;
+
       display: flex;
       flex-direction: row;
     }
@@ -274,7 +276,7 @@
       ro.observe(canvas);
 
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x8a8a8a);
+      scene.background = new THREE.Color(0xffffff);
 
       camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 5000);
       camera.position.set(500, 500, 500);
@@ -366,7 +368,6 @@
         console.log('NIfTI URL:', niiUrl);
         console.log('NRRD URL:', nrrdUrl);
 
-
         // ✅ 메시 생성 및 threeMeshes 전역 설정
         const meshes = await renderNrrdMesh(scene, camera, renderer, nrrdUrl);
         initMeshMap(meshes);
@@ -406,7 +407,6 @@
 
     window.initMeshMap = initMeshMap;
 
-
     async function loadTestVolumes() {
       const [niiBlob, nrrdBlob] = await Promise.all([
         fetch('./data/converted.nii.gz').then(res => res.blob()),
@@ -436,11 +436,16 @@
 
       // ✅ Niivue 초기화 (이후 카메라 동기화 진행)
       await showTopVolumeOnly(nrrdUrl, labelColorMap1);
-      await initTopLeftView(niiUrl, nrrdUrl);
-      await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
+      const bottomView = await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
+      // await initTopLeftView(niiUrl, nrrdUrl);
+      const topLeftView = await createTopLeftFromAnotherView(bottomView);
+
+      bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
+      topLeftView.broadcastTo([bottomView], { "2d": true, "3d": true });
 
       lassoEditor.setRenderInstance(nvRender);
       lassoEditor.setMultiInstance(nvMulti);
+      lassoEditor.setTopLeftView(topLeftView);
 
       console.log("📦 Loaded volumes in nvMulti:", nvMulti?.volumes);
       
@@ -448,33 +453,9 @@
         console.warn("⚠️ Niivue에 볼륨이 로드되지 않았습니다.");
       } else {
         console.log("✅ 볼륨 로드 완료:", nvMulti.volumes.map(v => v.name));
-
-        // 🎨 라쏘 에디터에 볼륨 연결 및 색상 시스템 초기화
-        // if (window.lassoEditor) {
-        //   console.log("🔗 라쏘 에디터에 볼륨 연결 중...");
-        //   window.lassoEditor.nvMulti = nvMulti;
-        //   window.lassoEditor.backupVolumeData();
-
-        //   const segVolume = nvMulti.volumes[1];
-        //   if (segVolume) {
-        //     // ✅ LUT 기반 모드 활성화
-        //     segVolume.colormap = "label";
-        //     segVolume.indexedColors = true;
-        //     segVolume.opacity = 1.0;
-        //     segVolume.alphaThreshold = 0.0;
-        //     console.log("✅ 세그멘테이션 볼륨 LUT 모드 설정 완료:", segVolume);
-        //   }
-
-        //   // 🎨 LUT 설정 후 색상 업데이트
-        //   setTimeout(() => {
-        //     console.log("🎨 LUT 기반 색상 업데이트 호출");
-        //     window.lassoEditor.updateVolumeColorsFromBackend();
-        //   }, 500);
-        // }
       }
 
-
-
+      // 볼륨의 공간상의 위치가 잘 되어있는지 확인을 위한 바운딩 박스
       // showVolumeBoundingBox(nvRender.volumes[0])
       
       logVolumeAndMeshStats(nvRender, camera, controls);
@@ -808,6 +789,23 @@
       return leftTopPlane;
     }
 
+    // 다른 niivue 의 volume 들을 사용하여 새로운 Niivue 를 만든다.
+    async function createTopLeftFromAnotherView(niiVue) {
+      const leftTopPlane = new niivue.Niivue({
+        sliceType: niivue.SLICE_TYPE.AXIAL,
+        backColor: [0, 0, 0, 1],
+        dragAndDropEnabled: false,
+        isOrientCube: true,
+      });
+
+      await leftTopPlane.attachTo("leftTop");
+
+      leftTopPlane.addVolume(niiVue.volumes[0]);
+      leftTopPlane.addVolume(niiVue.volumes[1]);
+
+      return leftTopPlane;
+    }
+
     async function showMultiVolumeView(niiUrl, nrrdUrl) {
       nvMulti = new niivue.Niivue({
         sliceType: niivue.SLICE_TYPE.MULTIPLANE,
@@ -817,12 +815,8 @@
       });
 
       const customLayout = [
-        // Left half - Sagittal view
-        { sliceType: niivue.SLICE_TYPE.SAGITTAL, position: [0, 0, 0.5, 1.0] },
-        // Top right quarter - Coronal view  
-        { sliceType: niivue.SLICE_TYPE.CORONAL, position: [0.5, 0, 0.5, 1.0] },
-        // Bottom right quarter - Axial view
-        // { sliceType: SLICE_TYPE.AXIAL, position: [0.5, 0.5, 0.5, 0.5] }
+        { sliceType: niivue.SLICE_TYPE.CORONAL, position: [0.0, 0, 0.5, 1.0] },
+        { sliceType: niivue.SLICE_TYPE.SAGITTAL, position: [0.5, 0, 0.5, 1.0] },
       ];
 
       nvMulti.setCustomLayout(customLayout);
@@ -1395,7 +1389,7 @@
       pointer-events: auto;
       /* 또는 all */
       z-index: 1;
-      /* sidebar보다 낮아야 클릭 통과 */
+      
       width: 100%;
       height: 100%;
       display: flex;
@@ -1429,6 +1423,7 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+
     }
 
     #volumeTableArea {
