@@ -2433,6 +2433,7 @@ export class LassoEditor {
                 window.initMeshMap(newMeshes);
                 window.addMeshsToScene(newMeshes);
                 window.bindMeshControllers(newMeshes);
+                window.buildVolumeTable(newMeshes, segVolume);
             });
 
         console.log(segVolume);     
