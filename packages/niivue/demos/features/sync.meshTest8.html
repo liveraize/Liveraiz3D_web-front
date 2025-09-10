@@ -258,7 +258,7 @@
     };
 
     initThreeJS()
-    loadTestVolumes();
+    // loadTestVolumes();
 
     function adjustMeshCanvasSize() {
       const w = canvas.clientWidth;
@@ -363,42 +363,27 @@
       try {
         const { niiUrl, nrrdUrl } = await uploadAndInferDicomBundle(
           e.target.files,
-          'http://127.0.0.1:5000/infer-dicom-bundle',
+          'http://127.0.0.1:5051/infer-dicom-bundle',
           (msg) => status.textContent = msg
         );
-
-        console.log('NIfTI URL:', niiUrl);
-        console.log('NRRD URL:', nrrdUrl);
-
-        // ✅ 메시 생성 및 threeMeshes 전역 설정
-        const meshes = await renderNrrdMesh(scene, camera, renderer, nrrdUrl);
-        initMeshMap(meshes);
-        buildMeshControllers(meshes);
-        addMeshsToScene(meshes);
-        // 카메라 맞춤
-        if (meshes.length > 0) {
-          fitCameraToMeshes(meshes, camera, controls);
-        }
-
-        threeMeshes = meshes;
-        meshes.forEach(m => {
-          meshMap[m.userData.label] = m;
-        });
-        
-
-        // ✅ Niivue 초기화 (이후 카메라 동기화 진행)
-        await showTopVolumeOnly(nrrdUrl);
-        await initTopLeftView(niiUrl, nrrdUrl);
-        await showMultiVolumeView(niiUrl, nrrdUrl);
-
-        // ✅ 카메라 및 통계 출력
-        logVolumeAndMeshStats(nvRender, camera, controls);
-
+        await renderVolumeMeshAndSlices(niiUrl, nrrdUrl);
       } catch (err) {
         console.error(err);
         status.textContent = `❌ 오류: ${err.message}`;
       }
     });
+
+    async function loadTestVolumes() {
+      const [niiBlob, nrrdBlob] = await Promise.all([
+        fetch('./data/converted.nii.gz').then(res => res.blob()),
+        fetch('./data/inferred.nrrd').then(res => res.blob())
+      ]);
+
+      const nrrdUrl = URL.createObjectURL(nrrdBlob);
+      niiUrl = URL.createObjectURL(niiBlob);
+      
+      await renderVolumeMeshAndSlices(niiUrl, nrrdUrl);
+    }
 
     function initMeshMap(meshes) {
       meshMap = {};
@@ -409,15 +394,9 @@
 
     window.initMeshMap = initMeshMap;
 
-    async function loadTestVolumes() {
-      const [niiBlob, nrrdBlob] = await Promise.all([
-        fetch('./data/converted.nii.gz').then(res => res.blob()),
-        fetch('./data/inferred.nrrd').then(res => res.blob())
-      ]);
+    
 
-      const nrrdUrl = URL.createObjectURL(nrrdBlob);
-      niiUrl = URL.createObjectURL(niiBlob);
-
+    async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl) {
       // ✅ 메시 생성 및 threeMeshes 전역 설정
       const meshes = await renderNrrdMesh(scene, camera, renderer, nrrdUrl);
       console.log("🧪 meshes 값:", meshes);
